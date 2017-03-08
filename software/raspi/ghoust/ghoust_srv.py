@@ -167,10 +167,10 @@ class GHOUST:
                             self.clients.update({ pid : pobj })
                             self.on_conn(pobj, "CONNECTED")
                     elif str(msg.payload) == "DISCONNECTED" and self.clients.has_key(pid):
-                            self.clients.pop(pid)
                             pobj = self.clients[pid]
+                            self.clients.pop(pid)
                             self.on_conn(pid, pobj, "DISCONNECTED")
-                
+                            del pobj 
 
             elif foo == "events":
                     # pass message to game engine callbacks
