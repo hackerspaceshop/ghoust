@@ -24,15 +24,15 @@ class Player:
         print self.pid + ": warn"
         # vibrate or light a little
 	# TODO
-        self._vibrate() 
-	self._light()
+        self._config("vibro") 
+	self._config("led")
 
     def out(self):
         print self.pid + ": out"
         # vibrate hard, light red, set inactive
         self.status = "INACTIVE"
-	self._vibrate()
-	self._light()
+	self._config("vibro")
+	self._config("led")
     
     def timeout(self):
         print self.pid + ": timeout"
@@ -57,50 +57,39 @@ class Player:
     def start(self):
         print self.pid + ": start"
         self.status = "GO"
-	self._vibrate()
-	self._light()
+	self._config("vibro")
+	self._config("led")
 
     def win(self):
         print self.pid + ": win"
         # vibrate partily, light green
-	self._vibrate()
-	self._light()
+	self._config("vibro")
+	self._config("led")
 
     ############# raw functions for low level access ##############
-
-    def _vibrate(self, val=None, preset=None): # val: [0-1023, 0-1023], [duration (ms), frequency (hz)]
+    # buzzer, vibro val: [0-1023, 0-1023], [duration (ms), frequency (hz)]
+    # led val: [0-1023, 0-1023, 0-10123], [r, g, b]
+    # parameter: ["vibro", "buzzer", "led"]
+    def _config(self, parameter, val=None, preset=None):
+        if parameter not in ["vibro", "buzzer", "led"]:
+            print "parameter not valid"
+            return
+        topic = self.basestring +"/config/{}".format(parameter)
+    
         if preset != None:
             if not (0 <= int(preset) <= 9):
                 print "vibrate preset not in range"
-            self.client.publish(self.basestring + "/config/vibro", "PRESET:"+ preset)
+            self.client.publish(topic, "PRESET:"+ preset)
+        
         if val != None:
             if (not (0 <= val[0] <= 1023) or 
-                not (0 <= val[1] <= 1023)): 
-                print "vibrate values not in range"
-            self.client.publish(self.basestring + "/config/vibro", "RAW:{:04},{:04}".format(*val))
-    
-    def _buzzer(self, val=None, preset=None): # val: [0-1023, 0-1023], [duration (ms), frequency (hz)]
-        if preset != None:
-            if not (0 <= int(preset) <= 9):
-                print "buzzer preset not in range"
-            self.client.publish(self.basestring + "/config/buzzer", "PRESET:"+ preset)
-        if val != None:
-            if (not (0 <= val[0] <= 1023) or 
-                not (0 <= val[1] <= 1023)): 
-                print "buzzer values not in range"
-            self.client.publish(self.basestring + "/config/buzzer", "RAW:{:04},{:04}".format(*val))
-
-    def _light(self, val=None, preset=None): # val: [0-1023, 0-1023, 0-10123], [r, g, b]
-        if preset != None:
-            if not (0 <= int(preset) <= 9):
-                print "light preset not in range"
-            self.client.publish(self.basestring + "/config/led", "PRESET:"+ preset)
-        if val != None:
-            if (not (0 <= val[0] <= 1023) or 
-                not (0 <= val[1] <= 1023) or 
-                not (0 <= val[2] <= 1023)): 
-                print "light values not in range"
-            self.client.publish(self.basestring + "/config/led", "RAW:{:04},{:04},{:04}".format(*val))
+                not (0 <= val[1] <= 1023) or
+                (parameter == "led" and not(0 <= val[2] <= 1023))): 
+                print "config values not in range"
+            fstring = "RAW:{:04},{:04}"
+            if parameter == "led":
+                fstring = "RAW:{:04},{:04},{:04}"
+            self.client.publish(topic, fstring.format(*val))
 
 
 class GHOUST:
@@ -116,6 +105,8 @@ class GHOUST:
         self.client._on_connect = self._on_connect
         self.client._on_message = self._on_message
         
+        # config parameters
+        self.max_games = 4
         self.accel_threshold = accel_threshold
         # TODO accel_threshold to clients
 
@@ -125,7 +116,34 @@ class GHOUST:
         self.on_gestures = on_gestures
         self.on_conn = on_conn
 
-    #### mqtt callbacks ###
+    #### game functions ####
+    
+    # buzzer, vibro val: [0-1023, 0-1023], [duration (ms), frequency (hz)]
+    # led val: [0-1023, 0-1023, 0-10123], [r, g, b]
+    # parameter: ["vibro", "buzzer", "led"]
+
+    def _game_config(self, game, parameter, val=None, preset=None):
+        if not (0 <= game <= 4) or parameter not in ["vibro", "buzzer", "led"]:
+            print "game number or parameter not valid"
+            return
+        topic = "GHOUST/game/{}/{}".format(game, parameter)
+    
+        if preset != None:
+            if not (0 <= int(preset) <= 9):
+                print "vibrate preset not in range"
+            self.client.publish(topic, "PRESET:"+ preset)
+        
+        if val != None:
+            if (not (0 <= val[0] <= 1023) or 
+                not (0 <= val[1] <= 1023) or
+                (parameter == "led" and not(0 <= val[2] <= 1023))): 
+                print "vibrate values not in range"
+            fstring = "RAW:{:04},{:04}"
+            if parameter == "led":
+                fstring = "RAW:{:04},{:04},{:04}"
+            self.client.publish(topic, fstring.format(*val))
+
+    #### mqtt callbacks ####
 
     def _on_connect(self, client, userdata, flags, rc):
         print("Connected with result code " + str(rc))

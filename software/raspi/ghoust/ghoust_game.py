@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from ghoust_srv import Player, GHOUST, filter_clients
-import ghoust_util
 from threading import Timer, Thread
 import time
 from IPython import embed

@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 
 import paho.mqtt.client as mqtt
-from random import randint
+from random import randint, gammavariate
 import threading
 import time
 
 
 class ghoust_debug:
-    def __init__(self, delay = 3):
+    def __init__(self, delay = 3, num_clients = 10):
         t = []
-        for i in range(4):
+        for i in range(num_clients):
             a=threading.Thread(target=self.client, args=[delay])
             a.start()
             t.append(a)
@@ -52,7 +52,7 @@ class ghoust_debug:
                     v = "LONGPRESS"
                 client.publish("GHOUST/clients/{0}/events/button".format(cid), v)
             if s == 1: 
-                client.publish("GHOUST/clients/{0}/events/accelerometer".format(cid), randint(0,99))
+                client.publish("GHOUST/clients/{0}/events/accelerometer".format(cid), int(gammavariate(1,1)*10))
             if s == 2:
                 pass
                 #client.publish("GHOUST/clients/{0}/events/gestures".format(cid), "2")
