@@ -2,6 +2,7 @@
 import time
 
 import paho.mqtt.client as mqtt
+import importlib
 
 from IPython import embed
 
@@ -93,10 +94,8 @@ class Player:
 
 
 class GHOUST:
-    def _dummy_cb(*args):
-        print "dummy callback"
-    
-    def __init__(self, accel_threshold = [20,20,20], on_button = _dummy_cb, on_accelerometer = _dummy_cb, on_gestures = _dummy_cb, on_conn = _dummy_cb):
+
+    def __init__(self, games):
         
         self.clients = dict()
         
@@ -107,14 +106,13 @@ class GHOUST:
         
         # config parameters
         self.max_games = 4
-        self.accel_threshold = accel_threshold
-        # TODO accel_threshold to clients
-
-        # game callbacks 
-	self.on_button =  on_button 
-        self.on_accelerometer = on_accelerometer
-        self.on_gestures = on_gestures
-        self.on_conn = on_conn
+        
+        # game modules
+        self.games = []
+        for g in games:
+            m = importlib.import_module("games."+g)
+            C = getattr(m, g)
+            self.games.append(C(self.clients))
 
     #### game functions ####
     
@@ -165,11 +163,13 @@ class GHOUST:
                     if str(msg.payload) == "CONNECTED":
                             pobj = Player(pid, client)
                             self.clients.update({ pid : pobj })
-                            self.on_conn(pobj, "CONNECTED")
+                            for g in self.games:
+                                g._on_conn(pobj, "CONNECTED")
                     elif str(msg.payload) == "DISCONNECTED" and self.clients.has_key(pid):
                             pobj = self.clients[pid]
                             self.clients.pop(pid)
-                            self.on_conn(pid, pobj, "DISCONNECTED")
+                            for g in self.games:
+                                g._on_conn(pid, pobj, "DISCONNECTED")
                             del pobj 
 
             elif foo == "events":
@@ -178,13 +178,14 @@ class GHOUST:
                     pobj = self.clients[pid]
 
                     if   elem == "button":
-                        self.on_button(pobj, str(msg.payload))
+                        for g in self.games:
+                            g._on_button(pobj, str(msg.payload))
                     elif elem == "accelerometer":
-                        self.on_accelerometer(pobj, str(msg.payload))
+                        for g in self.games:
+                            g._on_accelerometer(pobj, str(msg.payload))
                     elif elem == "gestures":
-                        self.on_gestures(pobj, str(msg.payload))
-
-                    #print pid, ": ", msg.topic, "; "+ msg.payload
+                        for g in self.games:
+                            g._on_gestures(pobj, str(msg.payload))
             
     def stop(self):
         self.client.loop_stop()
@@ -192,6 +193,9 @@ class GHOUST:
     def run(self):
         self.client.connect("localhost", 1883, 60)
         self.client.publish("GHOUST/server/status", "ACTIVE")
+        
+        for g in self.games:
+            g.setup()
         
         self.client.loop_forever()
 
@@ -205,5 +209,21 @@ def filter_clients(c, status=""):
     return []
 
 if __name__ == "__main__":
-    g = GHOUST()
-    g.run()
+    import ghoust_debug_clients
+    debug = ghoust_debug_clients.ghoust_debug()
+
+    
+    # TODO argparse
+    g = GHOUST(["ghoust_game"])
+    
+    try:
+        g.run()
+    except KeyboardInterrupt:
+        for game in g.games:
+            game.stop()
+        g.stop()
+
+
+    print "\n Cleaning up, stopping debug clients"
+    debug.stop()
+
