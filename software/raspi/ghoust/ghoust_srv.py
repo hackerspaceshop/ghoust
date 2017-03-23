@@ -4,17 +4,18 @@ import time
 import paho.mqtt.client as mqtt
 import importlib
 
-from IPython import embed
-
 
 class Player:
-    def __init__(self, pid, mqtt_client, name=""):
+    def __init__(self, pid, mqtt_client, name="", game=None):
         self.pid = pid
 	self.client = mqtt_client
         self.team = 0
-        self.status = "INACTIVE"
+        self.status = "SELECT_GAME"
 	self.basestring = "GHOUST/clients/{0}".format( self.pid )
+        self.game = game
+        self.select_game(0)
         
+    
     def name(self, name):
         self.name = name
 
@@ -46,12 +47,12 @@ class Player:
         # TODO abort action
 
     def join(self):
-        print self.pid + ": join"
+        print self.pid + ": join game ",self.game.game_number
         self.status = "ACTIVE"
         # action?
 
     def leave(self):
-        print self.pid + ": leave"
+        print self.pid + ": leave ",self.game.game_number
         self.status = "INACTIVE"
         # action ?
         
@@ -66,7 +67,27 @@ class Player:
         # vibrate partily, light green
 	self._config("vibro")
 	self._config("led")
+    
+    def select_game(self, n):
+        self.select_game_n = n
+        #print "player ",self.pid,": select game, flash ",n
+        # TODO flash gamenumber periodically
 
+    def set_game(self, game_p):
+        if self.game == game_p:
+            return
+        
+        if self.game != None:
+            self.game._leave(self.pid, self)
+        
+        self.game = game_p
+        print self.pid," set game: ", str(game_p)
+        if game_p != None:
+            self.game._join(self.pid, self)
+            self.status = "INACTIVE"
+        else:
+            self.status = "SELECT_GAME"
+    
     ############# raw functions for low level access ##############
     # buzzer, vibro val: [0-1023, 0-1023], [duration (ms), frequency (hz)]
     # led val: [0-1023, 0-1023, 0-10123], [r, g, b]
@@ -95,7 +116,7 @@ class Player:
 
 class GHOUST:
 
-    def __init__(self, games):
+    def __init__(self, game_list):
         
         self.clients = dict()
         
@@ -109,10 +130,10 @@ class GHOUST:
         
         # game modules
         self.games = []
-        for g in games:
+        for i, g in enumerate(game_list):
             m = importlib.import_module("games."+g)
             C = getattr(m, g)
-            self.games.append(C(self.clients))
+            self.games.append(C(i))
 
     #### game functions ####
     
@@ -153,41 +174,53 @@ class GHOUST:
 
     def _on_message(self, client, userdata, msg):
             topic = msg.topic.split("/")
+            payload = str(msg.payload)
             if len(topic) < 4:
-                    print("msg tree too short! debug: " +msg.topic + " " + str(msg.payload))
+                    print("msg tree too short! debug: " +msg.topic + " " + payload)
                     return
             
             pid = topic[2]
-            foo = topic[3]
-            if foo == "status":
-                    if str(msg.payload) == "CONNECTED":
+            subtree = topic[3]
+            if subtree == "status":
+                    if payload == "CONNECTED":
+                            
                             pobj = Player(pid, client)
                             self.clients.update({ pid : pobj })
-                            for g in self.games:
-                                g._on_conn(pobj, "CONNECTED")
-                    elif str(msg.payload) == "DISCONNECTED" and self.clients.has_key(pid):
+                            if len(self.games) == 1 :
+                                pobj.set_game(self.games[0])
+
+                    elif payload == "DISCONNECTED" and self.clients.has_key(pid):
                             pobj = self.clients[pid]
                             self.clients.pop(pid)
-                            for g in self.games:
-                                g._on_conn(pid, pobj, "DISCONNECTED")
+                            pobj.set_game(None)
+
                             del pobj 
 
-            elif foo == "events":
+            elif subtree == "events":
                     # pass message to game engine callbacks
                     elem = topic[4]
                     pobj = self.clients[pid]
-
-                    if   elem == "button":
-                        for g in self.games:
-                            g._on_button(pobj, str(msg.payload))
-                    elif elem == "accelerometer":
-                        for g in self.games:
-                            g._on_accelerometer(pobj, str(msg.payload))
-                    elif elem == "gestures":
-                        for g in self.games:
-                            g._on_gestures(pobj, str(msg.payload))
+                    
+                    if pobj.status == "SELECT_GAME":
+                        if elem == "button":
+                            if payload == "CLICK":
+                                pobj.select_game((pobj.select_game_n + 1) % len(self.games)) # dirty...
+                            elif payload == "LONGPRESS":
+                                pobj.set_game( self.games[pobj.select_game_n] ) 
+                    else:
+                        if elem == "button":
+                            if payload == "LONGPRESS" and len(self.games) > 1: # Leave game
+                                pobj.set_game(None)
+                            else:    # let game know of button press
+                                pobj.game._on_button(pobj, payload)
+                        elif elem == "accelerometer":
+                            pobj.game._on_accelerometer(pobj, payload)
+                        elif elem == "gestures":
+                            pobj.game._on_gestures(pobj, payload)
             
     def stop(self):
+        for g in self.games:
+            g.stop()
         self.client.loop_stop()
 
     def run(self):
@@ -199,8 +232,6 @@ class GHOUST:
         
         self.client.loop_forever()
 
-
-
 #############################
 
 def filter_clients(c, status=""):
@@ -209,21 +240,20 @@ def filter_clients(c, status=""):
     return []
 
 if __name__ == "__main__":
-    import ghoust_debug_clients
-    debug = ghoust_debug_clients.ghoust_debug()
+    #import ghoust_debug_clients
+    #debug = ghoust_debug_clients.ghoust_debug(num_clients=100)
 
     
     # TODO argparse
+    #g = GHOUST(["ghoust_game", "ghoust_game"])
     g = GHOUST(["ghoust_game"])
     
     try:
         g.run()
     except KeyboardInterrupt:
-        for game in g.games:
-            game.stop()
         g.stop()
 
 
-    print "\n Cleaning up, stopping debug clients"
-    debug.stop()
+    #print "\n Cleaning up, stopping debug clients"
+    #debug.stop()
 

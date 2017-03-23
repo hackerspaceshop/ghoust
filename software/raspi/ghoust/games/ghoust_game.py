@@ -5,10 +5,10 @@ from threading import Timer
 
 class ghoust_game:
     
-    def __init__(self, player_list):
+    def __init__(self, number):
         print "init"
-        
-        self.players = player_list
+        self.game_number = number
+        self.players = dict()
         
         self.outvalue = 23
         
@@ -22,7 +22,8 @@ class ghoust_game:
         self.pregame_t = 5
         self.game_t = 10
         self.end_t = 2
-
+    def __str__(self):
+        return  "ghoust_game (game number {})".format(self.game_number)
     
     def check_win(self):
         # count alive
@@ -35,7 +36,7 @@ class ghoust_game:
     
 
     def pre_game(self):
-        print "############# pregame ##############"
+        print "############# pregame (",self.game_number,") ##############"
         self.gamestatus = "pregame"
         self.endTimer = None
 
@@ -51,7 +52,7 @@ class ghoust_game:
             self.stop_timers(pregame=True)
 
     def start_game(self):
-        print "############# game ##############"
+        print "############# game (",self.game_number,") ##############"
         self.gamestatus = "game"
         self.pregameTimer = None
         # all joined clients in go mode
@@ -62,7 +63,7 @@ class ghoust_game:
         self.start_timers(game=True)
 
     def end_game(self, p=None, timeout=False):
-        print "############# endgame ##############"
+        print "############# endgame (",self.game_number,") ##############"
         self.gamestatus = "endgame"
 
         if   p != None:
@@ -114,11 +115,12 @@ class ghoust_game:
         return 0
     
     def _on_button(self, p, clicktype):
-        # join/leave game
-        if self.gamestatus == "pregame":
-            if clicktype == "CLICK" and p.status == "INACTIVE":
+
+        # join current round
+        if self.gamestatus == "pregame" and clicktype == "CLICK":
+            if p.status == "INACTIVE":
                 p.join()
-            if clicktype == "LONGPRESS" and p.status == "ACTIVE":
+            elif p.status == "ACTIVE":
                 p.leave()
             self.pre_game_timer()
 
@@ -128,20 +130,23 @@ class ghoust_game:
         # not used
         return 0
 
-    def _on_conn(self, p, state):
-        if state == "DISCONNECTED":
-            if self.gamestate == "game":
-                self.check_win()
-            elif self.gamestate == "pregame":
-                self.pre_game_timer()
-        print p.pid +": " + state
-        return 0
+    def _join(self, pid, p):
+        self.players.update({ pid : p })
+        self.pre_game_timer()
+        
 
+    def _leave(self, pid, p):
+        self.players.pop(pid)
+
+        if self.gamestatus == "game":
+            self.check_win()
+        elif self.gamestatus == "pregame":
+            self.pre_game_timer()
+    
     def setup(self):
-        # not used (?)
         self.gamestatus = "setup"
         self.pre_game()
     
-    def stop(self): 
+    def stop(self):
         self.stop_timers(True, True, True)
     
