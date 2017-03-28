@@ -25,9 +25,6 @@ int value = 0;
 
 
 
-// TODO fix this to a more dynamic address setup (maybe from wifimanager??)
-char mqtt_server[15] = "10.23.23.1";
-
 
 
 

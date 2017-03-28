@@ -20,6 +20,7 @@ void sound_setup()
 
  
  pinMode(SOUNDPIN,OUTPUT);
+
  
  
  
@@ -38,6 +39,11 @@ void beep(int frequency, int duration)
 { 
 
 if(!SOUND_ACTIVE) return;
+
+    
+
+ 
+ //pinMode(SOUNDPIN,OUTPUT);
  // simple wrapper, mabe we should add delay() in herrr according to duration .. not sure about this yet
  tone(SOUNDPIN, frequency, duration);
 }
@@ -61,9 +67,9 @@ void buzzer_handle_request(String message)
  if(message[0] == 'P')
  {
   // PRESET
-  Serial.print("(buzzer) Switching to PRESET");
+  Serial.print("(buzzer) Switching to PRESET: ");
   int preset =  message.substring(7,8).toInt() ;
-  Serial.print(preset);
+  Serial.println(preset);
   switch(preset)
   {
    case 1:

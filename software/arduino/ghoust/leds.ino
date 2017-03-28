@@ -1,13 +1,3 @@
-//uint8_t dataPin  = D3;    // Yellow wire on Adafruit Pixels
-//uint8_t clockPin = D4;   // Green wire on Adafruit Pixels
-
-// Don't forget to connect the ground wire to Arduino ground,
-// and the +5V wire to a +5V supply
-
-// Set the first variable to the NUMBER of pixels. 25 = 25 pixels in a row
-//Adafruit_WS2801 strip = Adafruit_WS2801(1, dataPin, clockPin);
-
-
 const int R_PIN = 13;   // D7 GPIO 13
 const int G_PIN = 12;   // D6 GPIO 12
 const int B_PIN = 14;   // D5 GPIO 14
@@ -37,10 +27,10 @@ void leds_setup()
 
 void leds_off()
 {
-    //high == off (common anode)
-  digitalWrite(R_PIN,HIGH); 
-  digitalWrite(G_PIN,HIGH);
-  digitalWrite(B_PIN,HIGH);  
+  
+  digitalWrite(R_PIN,get_color(0)); 
+  digitalWrite(G_PIN,get_color(0));
+  digitalWrite(B_PIN,get_color(0));  
   
 }
 
@@ -61,9 +51,9 @@ void leds_all(int r, int g, int b)
  
  
 
- analogWrite(R_PIN,1023-r);  
- analogWrite(G_PIN,1023-g);  
- analogWrite(B_PIN,1023-b);  
+ analogWrite(R_PIN,get_color(r));  
+ analogWrite(G_PIN,get_color(g));  
+ analogWrite(B_PIN,get_color(b));  
 
  
   
@@ -105,6 +95,15 @@ if(message[0] == 'R')
 
  
   
+}
+
+
+
+int get_color(int val)
+{
+
+  val=1023-val;  
+  return val;
 }
 
 

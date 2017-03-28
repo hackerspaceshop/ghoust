@@ -13,21 +13,11 @@ void motor_setup()
  digitalWrite(MOTORPIN,LOW); 
  
  
-// rumbleMotor();
+  motor_raw(1023,200);
   
 }
 
 
-/*
-void rumbleMotor()
-{
- // TODO fill me. 
-  analogWrite(MOTORPIN,1023); 
- delay(500);
-  analogWrite(MOTORPIN,0);
-}
-
-*/
 
 
 void motor_raw(int frequency, int duration)
