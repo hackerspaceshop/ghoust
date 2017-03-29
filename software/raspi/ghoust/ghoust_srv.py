@@ -3,6 +3,7 @@ import time
 
 import paho.mqtt.client as mqtt
 import importlib
+from threading import Timer
 
 
 class Player:
@@ -14,7 +15,9 @@ class Player:
 	self.basestring = "GHOUST/clients/{0}".format( self.pid )
         self.game = game
         self.select_game(0)
-        
+	self.led_timer = None        
+        # can be used to store game specific parameters in the player object
+        self.game_params = dict()
     
     def name(self, name):
         self.name = name
@@ -24,54 +27,84 @@ class Player:
 
     def warn(self):
         print self.pid + ": warn"
-        # vibrate or light a little
-	# TODO
-        self._config("vibro") 
-	self._config("led")
+
+        # vibrate and light softly
+	#self._config("led", preset = 2)
+	self._config("led", val=[1023,1023,0], duration_led=1)
+        self._config("motor", preset = 2) 
+	#self._config("buzzer", preset = 2)
 
     def out(self):
         print self.pid + ": out"
-        # vibrate hard, light red, set inactive
         self.status = "INACTIVE"
-	self._config("vibro")
-	self._config("led")
+        
+	# vibrate hard, light red, set inactive
+	self._config("motor", preset = 1)
+	self._config("led", preset = 1)
+	self._config("led", val=[1023,0,0], duration_led=1)
+	self._config("buzzer", preset = 3)
     
     def timeout(self):
         print self.pid + ": timeout"
         self.status = "INACTIVE"
-        # TODO timeout action
+        
+	# timeout action
+	self._config("motor", preset = 1)
+	self._config("led", preset = 1)
+	self._config("led", val=[1023,1023,0], duration_led=1)
+	#self._config("buzzer", preset = 1)
+	
     
     def abort(self):
         print self.pid + ": abort"
         self.status = "INACTIVE"
-        # TODO abort action
+        # light orange, weirdly vibrate
+	self._config("motor", preset = 1)
+	self._config("led", preset = 1)
+	self._config("led", val=[1023,1023,0], duration_led=1)
+	#self._config("buzzer", preset = 1)
+	
 
     def join(self):
         print self.pid + ": join game ",self.game.game_number
         self.status = "ACTIVE"
         # action?
+	self._config("motor", preset = 1)
+	self._config("led", preset = 1)
+	#self._config("buzzer", preset = 1)
 
     def leave(self):
         print self.pid + ": leave ",self.game.game_number
         self.status = "INACTIVE"
         # action ?
+	self._config("motor", preset = 1)
+	self._config("led", preset = 1)
+	#self._config("buzzer", preset = 1)
         
     def start(self):
         print self.pid + ": start"
         self.status = "GO"
-	self._config("vibro")
+	self._config("motor")
 	self._config("led")
+	self._config("led", val=[0,1023,0])
+	self._config("buzzer", preset=2)
 
     def win(self):
         print self.pid + ": win"
         # vibrate partily, light green
-	self._config("vibro")
+	self._config("motor",preset=3)
 	self._config("led")
+	self._config("led", val=[0,1023,0], duration_led=5)
+	self._config("buzzer", preset = 1)
     
     def select_game(self, n):
         self.select_game_n = n
         #print "player ",self.pid,": select game, flash ",n
         # TODO flash gamenumber periodically
+    def set_accel_thresh(self, out, warn):
+	
+        self.client.publish(self.basestring+"/config/accel_out", str(out))
+        self.client.publish(self.basestring+"/config/accel_warn", str(warn))
 
     def set_game(self, game_p):
         if self.game == game_p:
@@ -81,19 +114,21 @@ class Player:
             self.game._leave(self.pid, self)
         
         self.game = game_p
-        print self.pid," set game: ", str(game_p)
+        self.game_params = dict()
+        print self.pid," set game:: ", str(game_p)
         if game_p != None:
-            self.game._join(self.pid, self)
             self.status = "INACTIVE"
+            self.game._join(self.pid, self)
         else:
             self.status = "SELECT_GAME"
     
     ############# raw functions for low level access ##############
     # buzzer, vibro val: [0-1023, 0-1023], [duration (ms), frequency (hz)]
-    # led val: [0-1023, 0-1023, 0-10123], [r, g, b]
-    # parameter: ["vibro", "buzzer", "led"]
-    def _config(self, parameter, val=None, preset=None):
-        if parameter not in ["vibro", "buzzer", "led"]:
+    # led val: [0-1023, 0-1023, 0-1023, 0-inf], [r, g, b, duration (ms)]
+    # parameter: ["motor", "buzzer", "led"]
+    # duration_led: ms, only used for value input
+    def _config(self, parameter, val=None, preset=None, duration_led=None):
+        if parameter not in ["motor", "buzzer", "led"]:
             print "parameter not valid"
             return
         topic = self.basestring +"/config/{}".format(parameter)
@@ -101,7 +136,7 @@ class Player:
         if preset != None:
             if not (0 <= int(preset) <= 9):
                 print "vibrate preset not in range"
-            self.client.publish(topic, "PRESET:"+ preset)
+            self.client.publish(topic, "PRESET:{}".format(preset))
         
         if val != None:
             if (not (0 <= val[0] <= 1023) or 
@@ -111,7 +146,18 @@ class Player:
             fstring = "RAW:{:04},{:04}"
             if parameter == "led":
                 fstring = "RAW:{:04},{:04},{:04}"
+		if duration_led != None:
+		    self.led_timer = Timer(duration_led, self._config, args = ["led"], kwargs={"val":[0,0,0]})
+                    self.led_timer.start()
+		    # TODO previous led value?
+
+            # TODO inversal bug in firmware, temp fix, remove
+            if parameter == "led":	
+                self.client.publish(topic, fstring.format(*[1023-i for i in val]))
+                return 
             self.client.publish(topic, fstring.format(*val))
+
+            
 
 
 class GHOUST:
@@ -139,10 +185,10 @@ class GHOUST:
     
     # buzzer, vibro val: [0-1023, 0-1023], [duration (ms), frequency (hz)]
     # led val: [0-1023, 0-1023, 0-10123], [r, g, b]
-    # parameter: ["vibro", "buzzer", "led"]
+    # parameter: ["motor", "buzzer", "led"]
 
     def _game_config(self, game, parameter, val=None, preset=None):
-        if not (0 <= game <= 4) or parameter not in ["vibro", "buzzer", "led"]:
+        if not (0 <= game <= 4) or parameter not in ["motor", "buzzer", "led"]:
             print "game number or parameter not valid"
             return
         topic = "GHOUST/game/{}/{}".format(game, parameter)
@@ -241,12 +287,13 @@ def filter_clients(c, status=""):
 
 if __name__ == "__main__":
     #import ghoust_debug_clients
-    #debug = ghoust_debug_clients.ghoust_debug(num_clients=100)
+    #debug = ghoust_debug_clients.ghoust_debug(num_clients=30)
 
     
     # TODO argparse
     #g = GHOUST(["ghoust_game", "ghoust_game"])
     g = GHOUST(["ghoust_game"])
+    #g = GHOUST(["sort_game"])
     
     try:
         g.run()

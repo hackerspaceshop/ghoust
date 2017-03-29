@@ -2,42 +2,38 @@
 
 from ghoust_srv import filter_clients
 from threading import Timer
-import time
 
-from IPython import embed
-
-class ghoust_game:
+class template_game:
     
-    def __init__(self, number, join_mode = "auto"):
+    def __init__(self, number):
         print "init"
+        
         self.game_number = number
         self.players = dict()
+        
         
         self.gameTimer = None
         self.pregameTimer = None
         self.endTimer = None
         self.gamestatus = "init"
-	self.join_mode = join_mode
 
-	self.out_thresh = 10
-	self.warn_thresh = 8
 
         # configs
-        self.pregame_t = 5 if self.join_mode != "auto" else 0
+        self.pregame_t = 30
         self.game_t = 120
-        self.end_t = 5
+        self.end_t = 10
 
     def __str__(self):
-        return  "ghoust_game (game number {})".format(self.game_number)
+        return  "template_game (game number {})".format(self.game_number)
     
     def check_win(self):
-        # count alive
+        
         living = filter_clients(self.players, status = "GO")
         if len(living) == 1:
             self.end_game(p = living[0])
         if len(living) == 0:
             print "todo all dead before checkwin"
-            self.end_game()
+            exit(-1)
     
 
     def pre_game(self):
@@ -45,19 +41,13 @@ class ghoust_game:
         self.gamestatus = "pregame"
         self.endTimer = None
 
-	# all clients in inactive mode
-	for _,e in self.players.items():
-		
-		if self.join_mode == "auto":
-			e.join()
-		else:
-			e.leave()
-	self.pre_game_timer()
+        # all clients in inactive mode
+        for _,e in self.players.items():
+            e.leave()
 
     def pre_game_timer(self):
         # configure start timer if 2 or more clients joined
-        # TODO debug, > 1 should be
-        if len(filter_clients(self.players, status = "ACTIVE")) > 0 :
+        if len(filter_clients(self.players, status = "ACTIVE")) > 1 :
             self.start_timers(pregame=True)
         else:
             self.stop_timers(pregame=True)
@@ -66,9 +56,8 @@ class ghoust_game:
         print "############# game (",self.game_number,") ##############"
         self.gamestatus = "game"
         self.pregameTimer = None
-        # all joined clients: config and in go mode
+        # all joined clients in go mode
         for e in filter_clients(self.players, status="ACTIVE"):
-	    e.set_accel_thresh(self.out_thresh, self.warn_thresh)
             e.start()
 
         # set timer
@@ -84,7 +73,7 @@ class ghoust_game:
             for e in filter_clients(self.players, status="GO"):
                 e.timeout()
         else:
-            for _,e in self.players.items():
+            for e in self.players:
                 e.abort()
         self.stop_timers(game=True)
         self.start_timers(end=True)
@@ -118,30 +107,34 @@ class ghoust_game:
     
     def _on_accelerometer(self, p, value):
         if self.gamestatus == "game" and p.status == "GO":
-            if "WARNSHOCK" in value:
+            if value < self.outvalue:
                 p.warn()
-            elif "OUTSHOCK" in value:
+            elif value > self.outvalue:
                 p.out()
                 self.check_win()
+
+        return 0
     
     def _on_button(self, p, clicktype):
 
         # join current round
-        if self.gamestatus == "pregame" and clicktype == "CLICK" and self.join_mode != "auto":
+        if self.gamestatus == "pregame" and clicktype == "CLICK":
             if p.status == "INACTIVE":
                 p.join()
             elif p.status == "ACTIVE":
                 p.leave()
             self.pre_game_timer()
+
+        return 0
     
-    def _on_gestures(self, p, value):
-        pass # not used
+    def _on_gestures(self, p):
+        # not used
+        return 0
 
     def _join(self, pid, p):
         self.players.update({ pid : p })
-	if self.join_mode == "auto":
-		p.join()
-	self.pre_game_timer() 
+        self.pre_game_timer()
+        
 
     def _leave(self, pid, p):
         self.players.pop(pid)
