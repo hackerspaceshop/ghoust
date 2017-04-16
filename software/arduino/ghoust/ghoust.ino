@@ -30,6 +30,9 @@ ArduinoJson       //https://github.com/bblanchon/ArduinoJson
 
 
 #include <ESP8266WiFi.h>
+#include <Ticker.h>
+
+
 
 
 // FOR MQTT but also used in wifi
@@ -100,7 +103,7 @@ void loop()
   
  mqtt_work();
  button_work();
-
+ leds_work();
  
  // printOrientation();
 //  printAcceleration();

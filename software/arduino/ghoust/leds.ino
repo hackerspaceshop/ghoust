@@ -9,6 +9,16 @@ const int B_PIN = 14;   // D5 GPIO 14
 
 
 
+// the current value of R,G,B channels.
+// set via MQTT requests
+// this is what we will reset to if we receive a color setting request with a timeout (for example on warning)
+int current_r =0 ;
+int current_g =0 ;
+int current_b =0 ;
+
+
+
+Ticker ticker;
 
 
 void leds_setup()
@@ -26,7 +36,43 @@ void leds_setup()
   pinMode(B_PIN,OUTPUT);
   
   leds_off();
+
+  
 }
+
+
+
+int ticker_called = 0;
+// called from callback
+void leds_ticker()
+{
+ ticker_called=1;
+}
+
+
+
+
+// handle led stuff periodically
+void leds_work()
+{
+ // this is set via timer and resets colors after timeout 
+ if(ticker_called)
+ {
+      Serial.println("(leds) ticker_called set!, resetting leds");
+  
+    leds_all(current_r,current_g,current_b);
+    ticker.detach();
+    ticker_called=0;
+ }
+
+
+}
+
+
+
+
+
+
 
 
 
@@ -63,6 +109,8 @@ void leds_all(int r, int g, int b)
   analogWrite(B_PIN,get_color(b));  
 
 }
+
+
 
 
 
@@ -124,22 +172,41 @@ if(message[0] == 'R')
   int r=0;
   int g=0;
   int b =0; 
+  int timeout=0;
 
 
 // initialisieren und ersten Abschnitt erstellen
 ptr = strtok(message, delimiter);
 
 while(ptr != NULL) {
-        Serial.print("found:");
-        Serial.println(ptr);
+  Serial.print("found:");
+  Serial.println(ptr);
+
   if(counter==1) r= atoi(ptr);
   if(counter==2) g= atoi(ptr);
   if(counter==3) b= atoi(ptr);    
+  if(counter==4) timeout= atoi(ptr);    
+  
   counter++;
   ptr = strtok(NULL, delimiter);
 }
 
 
+// set the current color scheme to fall back to
+if(!timeout)
+{
+ current_r=r;
+ current_g=g;
+ current_b=b;    
+}
+else
+{
+  Serial.print("(leds) Callback timer set to: ");
+  Serial.println(timeout);  
+ // enable timer callback to reset colors 
+   ticker.attach_ms(timeout, leds_ticker);
+  
+}
 
 
 
