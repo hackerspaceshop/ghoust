@@ -31,6 +31,8 @@ void wifi_setup()
     Serial.println("wifi_setup()");
 
 
+
+
   //clean FS, for testing
   //SPIFFS.format();
 
@@ -71,13 +73,15 @@ void wifi_setup()
 
 
 
+
+
+
+
   // The extra parameters to be configured (can be either global or just in the setup)
   // After connecting, parameter.getValue() will get you the configured value
   // id/name placeholder/prompt default length
   WiFiManagerParameter custom_mqtt_server("server", "mqtt server", mqtt_server, 40);
   WiFiManagerParameter custom_mqtt_port("port", "mqtt port", mqtt_port, 5);
-
-
 
 
   //WiFiManager
@@ -111,7 +115,6 @@ void wifi_setup()
 
 
 
-
   //fetches ssid and pass and tries to connect
   //if it does not connect it starts an access point with the specified name
   //here  "AutoConnectAP"
@@ -126,8 +129,11 @@ void wifi_setup()
 
 
 
+
   //if you get here you have connected to the WiFi
   Serial.println("connected to WiFi! hooray!");
+
+
 
 
 

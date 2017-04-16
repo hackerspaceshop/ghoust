@@ -39,14 +39,36 @@ void motor_raw(int frequency, int duration)
 
 // called everytime a MQTT action regarding leds is received
 
-void motor_handle_request(String message)
+void motor_handle_request(char* message)
 {
+
+char led_message[100];
+char delimiter[] = ":,";
+char *ptr;
+int counter=0;
+
+  
 if(message[0] == 'P')
 {
+
+
+int preset = 0 ;
+
+ptr = strtok(message, delimiter);
+
+while(ptr != NULL) {
+        Serial.print("found:");
+        Serial.println(ptr);
+  if(counter==1) preset= atoi(ptr);  
+  counter++;
+  ptr = strtok(NULL, delimiter);
+}
+
+  
  // PRESET
- Serial.print("(motor) Switching to PRESET");
- int preset =  message.substring(7,8).toInt() ;
- Serial.print(preset);
+ Serial.print("(motor) Switching to PRESET: ");
+ //int preset =  message.substring(7,8).toInt() ;
+ Serial.println(preset);
 
   switch(preset)
   {
@@ -76,10 +98,35 @@ if(message[0] == 'P')
 
 if(message[0] == 'R')
 {
+
+
+ int frequency=0;
+ int duration=0;
+ 
+ ptr = strtok(message, delimiter);
+
+while(ptr != NULL) {
+        Serial.print("found:");
+        Serial.println(ptr);
+  if(counter==1) frequency= atoi(ptr);  
+  if(counter==2) duration= atoi(ptr);  
+  
+  counter++;
+  ptr = strtok(NULL, delimiter);
+}
+
+ 
+ 
+ 
  // RAW
-  Serial.println("(motor) Switching to RAW");
-  int frequency =  message.substring(4,8).toInt() ;
-  int duration =  message.substring(9,13).toInt() ;
+  Serial.print("(motor) Switching to RAW freq: ");
+  Serial.print(frequency);
+  Serial.print(" duration:");
+  Serial.println(duration);
+  
+    
+//  int frequency =  message.substring(4,8).toInt() ;
+//  int duration =  message.substring(9,13).toInt() ;
 
   motor_raw(frequency, duration);
 
@@ -99,6 +146,7 @@ if(message[0] == 'R')
 
 
 
+// TODO:  ASYNCHRON MIT TIMER lib arbeiten, delay() weg..
 
 /*
  * 

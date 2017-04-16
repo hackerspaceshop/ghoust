@@ -64,12 +64,48 @@ void mqtt_publish(char* topic,char* message)
 
 
 
+void mqtt_publish_retained(char* topic,char* message)
+{
+
+
+
+  char path[100]; 
+  sprintf (path, "GHOUST/clients/%s/%s", sysname , topic);
+
+   Serial.print("PUBLISHING RETAINED mqtt_publish('");
+   Serial.print(path);
+   Serial.print("','");
+   Serial.print(message);
+   Serial.println("')");
+
+  client.publish(path, message, true);
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
 /*
  *  This is called every time something is RECEIVED from the mqtt broker
  */
 
 
-String current_message ="";
+//String current_message ="";
+
+
+char current_message[100];
+
+
+
 
 void callback(char* topic, byte* payload, unsigned int length) {
 
@@ -79,36 +115,68 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 
 
-  current_message="";
+  //current_message='';
+
+
+  for(int i=0;i<length;i++)
+   current_message[i] = payload[i];
+
+//strncpy(current_message, payload,length);
+current_message[length] = '\0';
+
+
+  
+  /*
   for (int i = 0; i < length; i++) {
     current_message += (char)payload[i];
     
     Serial.print((char)payload[i]);
   }
+
+  */
+
+  
   Serial.println();
 
- String topic_str = topic;
 
 
-  if(topic_str.indexOf("/led")>0)
+  if(strstr(topic,"/led"))
   {
+   Serial.println("FOUND /led via strstr()"); 
    led_handle_request(current_message);
    return;    
   }
 
 
-
-  if(topic_str.indexOf("/buzzer")>0)
+  if(strstr(topic,"/buzzer"))
   {
+   Serial.println("FOUND /buzzer via strstr()"); 
    buzzer_handle_request(current_message);
    return;    
   }
 
-  if(topic_str.indexOf("/motor")>0)
+
+
+  if(strstr(topic,"/motor"))
   {
+   Serial.println("FOUND /motor via strstr()"); 
    motor_handle_request(current_message);
    return;    
   }
+
+
+  if(strstr(topic,"/accel"))
+  {
+
+      if(strstr(topic,"warn"))
+        accelerometer_threshold_handle_request(current_message,0);
+      else
+        accelerometer_threshold_handle_request(current_message,1);
+   return; 
+     
+  }
+
+
 
 
   // if not the received message is not for us specifically but for all connected devices, something that will start or end a new game..
@@ -157,7 +225,7 @@ true - connection succeeded.
     //was ist das?
     int willQos=1;
     // den disconnect status NICHT retainen!! sonst blasen wir die DB auf.
-    int willRetain=0;    
+    int willRetain=1;    
 
 
 /*
@@ -192,7 +260,7 @@ true - connection succeeded.
       Serial.println("connected");
       // Once connected, publish an announcement...
 
-      mqtt_publish("status","CONNECTED");
+      mqtt_publish_retained("status","CONNECTED");
 
 
     // global events

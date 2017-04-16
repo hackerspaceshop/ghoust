@@ -6,9 +6,8 @@
  Thanks to fbr's motivation and software support on the raspberry pi side.
 
  TODO:
-  switch to WiFiManager
-  switch to software config for MQTT broker ip
   implement accelerometer protocols
+  implement acclerometer threshold calc RMS (squared values)
   implement GAME logic
 
 needs the following libraries to compile
@@ -21,7 +20,10 @@ PubSubClient for MQTT support
 SparkFun_MMA8452Q (https://github.com/sparkfun/SparkFun_MMA8452Q_Arduino_Library)
 OneButton Library (https://github.com/mathertel/OneButton)
 
-WiFiManager ?
+
+WiFiManager         //https://github.com/tzapu/WiFiManager
+ArduinoJson       //https://github.com/bblanchon/ArduinoJson
+
 
 
 */
@@ -33,7 +35,7 @@ WiFiManager ?
 // FOR MQTT but also used in wifi
 //define your default values here, if there are different values in config.json, they are overwritten.
 char mqtt_server[40];
-char mqtt_port[6] = "1883";
+char mqtt_port[5] = "1883";
 
 
 
@@ -55,6 +57,11 @@ void setup()
   Serial.println("");
   Serial.println("<<< START >>>");
 
+  // setup the accelerometer
+  motion_setup();   // this breaks sometimes.. why? breadboard issue?!
+
+
+
   createUniqueSystemName();
 
 
@@ -64,11 +71,14 @@ void setup()
   
   sound_setup(); //ok
 
-  // setup the accelerometer
-  motion_setup();   // this breaks sometimes.. why? breadboard issue?!
+
+
+
 
 
   leds_setup();
+
+
 
    wifi_setup();
   
@@ -78,14 +88,25 @@ void setup()
   
 }
 
+
+
+
+
 void loop()
 {
+
+
+
   
-  mqtt_work();
-  button_work();
-  
-  printOrientation();
-    
-  
+ mqtt_work();
+ button_work();
+
+ 
+ // printOrientation();
+//  printAcceleration();
+
+
+  shock_detect();
+
 } 
 

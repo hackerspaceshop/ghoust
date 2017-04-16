@@ -25,14 +25,14 @@ void motion_setup()
   
     Serial.println("motion_setup()");
   
-    Wire.begin();
+    //Wire.begin();
     
-   // Serial.println("Wire.begin() finihed");  
+    //Serial.println("Wire.begin() finihed");  
 
     // for library
     accel.init();
     
-   // Serial.println("accel.init() finished");
+    Serial.println("accel.init() finished");
 }
 
 
@@ -184,6 +184,334 @@ void printAcceleration()
   
   
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//// SHOCK DETECTION
+
+
+
+
+const int       time_shock      =  300;
+
+
+
+    const float shock_dead = 4;
+    const float shock_dead2 = shock_dead * shock_dead;
+
+const float     shock_shake     =   20;
+const float shock_shake2 = shock_shake * shock_shake;
+
+
+    float shock2;
+    float dx, dy, dz; 
+    uint32_t  dt;
+    unsigned int shakes;
+
+    float oldx = 0, oldy = 0, oldz = 0;
+    unsigned long oldt;
+
+const int       time_shake      =  100;
+
+
+const int       shakes_start    =    5;
+
+
+const int       timeout_shake   =  500;
+
+uint32_t lastshock=0;
+uint32_t lastwarn=0;
+
+float out_threshold = 20;
+float warn_threshold = 10;
+
+
+
+
+void shock_detect()
+{
+  if(!update()) return;
+
+  
+  if(shock_3d(out_threshold))
+  {
+
+
+    /*
+    Serial.print("(accelerometer) SHOCK DETECTED");
+
+   Serial.print(" (");
+   Serial.print(shock2,3);   
+   Serial.println(")");
+*/
+    if((millis()-lastshock)>1000 ||  (lastshock==0))
+    {
+
+
+
+     char outmsg[100]; 
+     sprintf (outmsg, "OUTSHOCK (%d.%03d)", (int)shock2, (int)(shock2 * 1000.0) % 1000);
+      
+     mqtt_publish("events/accelerometer",outmsg);
+     lastshock=millis();
+    }   
+    //delay(1000);
+  }
+  else if(shock_3d(warn_threshold))
+  {
+
+    /*
+    Serial.print("(accelerometer) WARN DETECTED");
+   Serial.print(" (");
+   Serial.print(shock2,3);   
+   Serial.println(")");
+*/
+
+
+    if((millis()-lastwarn)>1000 ||  (lastwarn==0))
+    {
+
+     char warnmsg[100]; 
+     sprintf (warnmsg, "WARNSHOCK (%d.%03d)", (int)shock2, (int)(shock2 * 1000.0) % 1000);
+      
+     mqtt_publish("events/accelerometer",warnmsg);
+     lastwarn=millis();
+    }   
+    //delay(1000);
+  }
+
+
+
+  
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/// MQTT UPDATES
+
+void accelerometer_threshold_handle_request(char* message, int outwarn)
+{
+
+  
+
+ 
+ 
+ Serial.println("setting THRESHOLD");
+ Serial.println(message);
+
+ 
+ if(outwarn)
+ {
+    Serial.print("setting OUT: ");
+    out_threshold=strtod(message,NULL); //message.toFloat();
+    Serial.println(out_threshold,3);
+    
+
+    
+    
+ }
+ else
+ {
+    Serial.print("setting WARN: ");
+    warn_threshold=strtod(message,NULL); //message.toFloat();
+    Serial.println(warn_threshold,3);
+
+
+     
+ }
+  
+ return;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ //       acc.setSensitivity(HIGH);
+
+
+
+//int lastmeasure=0;
+
+
+int measurecounter = 0;
+const int integrate_counter=20;
+
+
+float x=0;
+float y=0;
+float z=0;
+
+
+ bool update() {
+
+    measurecounter++;
+    if(measurecounter<integrate_counter)
+    {
+       measurecounter=0; 
+   
+       if (accel.available())
+       {
+        // First, use accel.read() to read the new variables:
+        accel.read();
+
+        
+        x += accel.cx*accel.cx;
+        y += accel.cy*accel.cy;
+        z += accel.cz*accel.cz;
+
+      
+ 
+      return false;
+    }
+
+/*
+    Serial.println("integriert.");
+Serial.print("x: ");
+Serial.print(x);
+Serial.print("y: ");
+Serial.print(y);
+Serial.print("z: ");
+Serial.println(z);
+*/
+
+        unsigned long t = millis();
+
+
+        dx = x - oldx, dy = y - oldy, dz = z - oldz, dt = t - oldt;
+        oldx = x; oldy = y; oldz = z; oldt = t;
+
+      x=0;
+      y=0;
+      z=0;
+    
+       return true;
+    }
+
+
+/*
+  
+     if (accel.available())
+    {
+    // First, use accel.read() to read the new variables:
+    accel.read();
+        float x = accel.cx;
+        float y = accel.cy;
+        float z = accel.cz;
+        unsigned long t = millis();
+
+        dx = x - oldx, dy = y - oldy, dz = z - oldz, dt = t - oldt;
+        oldx = x; oldy = y; oldz = z; oldt = t;
+
+
+
+     }
+
+
+
+     */
+}
+
+
+    
+
+   //   float shock2=0;
+
+
+    bool shock_3d(float threshold2) {
+        shock2 = (float) (dx*dx + dy*dy + dz*dz) / dt;
+  
+    //  Serial.print("shock2: ");
+    //  Serial.println(shock2);
+      
+        return shock2 > threshold2;
+    }
+
+
+
+
+
+
+    unsigned long last_vertical_shock = 0;
+
+    bool vertical_shock(float threshold) {
+     
+
+        if (millis() - last_vertical_shock < time_shock) return false;
+
+        float shock = (float) abs(dy) / dt;
+        if (shock > threshold) {
+            shakes = 0;
+            last_vertical_shock = millis();
+            return true;
+        }
+        return false;
+    }
+
+
+
+
+
+    unsigned long last_shake = 0;
+
+
+    bool shake() {
+
+        if (shock_3d(shock_shake2) && last_shake < millis() - time_shake) {
+            last_shake = millis();
+
+            if (++shakes >= shakes_start) {
+                shakes = 0;
+                return true;
+            }
+        }
+
+        if (last_shake < millis() - timeout_shake) shakes = 0;
+
+        return false;
+    }
+
+
+
+
+
+
+
+
 
 
 
