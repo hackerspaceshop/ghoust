@@ -172,29 +172,9 @@ void wifi_setup()
 
 
 
-////////////// OLD
-  
-  /*
-  
-    WiFi.begin(ssid, pass);
-
-
-  
-  
-    //Wifi connection
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.print("WiFi connected, using IP address: ");
-  Serial.println(WiFi.localIP());
-  
-  
-  */
   
   // all green!
-  //leds_all(0,1023,0);
+  //set_led(0,1023,0);
 
    // make sound 
  beep_coin();
