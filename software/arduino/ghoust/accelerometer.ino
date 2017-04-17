@@ -1,17 +1,6 @@
 ///TODO
-// Move the whole motion detection stuff into interrupt routine and set tap events on accelerometer.
+// implement a good shock detection (there is something similar available in hardware.. see bottom of file for example code:w
 
-/*
- *  SCL = D1 GPIO5
- *  SDA = D2 GPIO4
- *  SA0 = 3.3V
- *  VIN = %V ?
- *  
- * 
- * 
- */
-
-// needs include in joust file for arduino fubar.
 
 #include <Wire.h> // Must include Wire library for I2C
 #include <SparkFun_MMA8452Q.h> // Includes the SFE_MMA8452Q library
@@ -24,14 +13,9 @@ void motion_setup()
 {
   
     Serial.println("motion_setup()");
-  
-    //Wire.begin();
-    
-    //Serial.println("Wire.begin() finihed");  
 
     // for library
     accel.init();
-    
     Serial.println("accel.init() finished");
 }
 
@@ -325,7 +309,7 @@ void accelerometer_threshold_handle_request(char* message, int outwarn)
  if(outwarn)
  {
     Serial.print("setting OUT: ");
-    out_threshold=strtod(message,NULL); //message.toFloat();
+    out_threshold=strtod(message,NULL);
     Serial.println(out_threshold,3);
     
 
@@ -335,7 +319,7 @@ void accelerometer_threshold_handle_request(char* message, int outwarn)
  else
  {
     Serial.print("setting WARN: ");
-    warn_threshold=strtod(message,NULL); //message.toFloat();
+    warn_threshold=strtod(message,NULL);
     Serial.println(warn_threshold,3);
 
 
