@@ -11,10 +11,6 @@ void battery_setup()
   
   Serial.println("battery_setup()");
 
-
-  //analogWriteFreq(200);
-
-
   pinMode(A0,INPUT);
 
   battery_check();
