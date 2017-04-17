@@ -8,15 +8,6 @@
 
 
 
-//String sysname = getUniqueSystemName();
-//char sname[] = {};
-
-
-
-
-
-
-
 WiFiClient espClient;
 PubSubClient client(espClient);
 long lastMsg = 0;
@@ -32,8 +23,12 @@ int value = 0;
 void mqtt_setup()
 {
   Serial.println("mqtt_setup()");
-    
-  client.setServer(mqtt_server, 1883);
+  Serial.print("Setting up server ");
+  Serial.print(mqtt_server);
+  Serial.print(":");   
+  Serial.println(atoi(mqtt_port));
+        
+  client.setServer(mqtt_server, atoi(mqtt_port));
   client.setCallback(callback); 
   
 }

@@ -18,7 +18,7 @@ int current_b =0 ;
 
 
 
-Ticker ticker;
+Ticker ledticker;
 
 
 //EFFECTS
@@ -70,7 +70,7 @@ void leds_work()
  {
     Serial.println("(leds) ticker_called set!, resetting leds");
     set_led(current_r,current_g,current_b);
-    ticker.detach();
+    ledticker.detach();
     ticker_called=0;
  }
 
@@ -237,7 +237,7 @@ if(message[0] == 'R')
     Serial.print("(leds) Callback timer set to: ");
     Serial.println(timeout);  
     // enable timer callback to reset colors after timeout
-    ticker.attach_ms(timeout, leds_ticker);
+    ledticker.attach_ms(timeout, leds_ticker);
     
   }
 
