@@ -19,10 +19,14 @@ class Player:
         # can be used to store game specific parameters in the player object
         self.game_params = dict()
     
-    def name(self, name):
+    def __repr__(self):
+        return str(self.pid)
+
+    def setname(self, name):
         self.name = name
 
-    def team(self, n):
+    def setteam(self, n):
+        print self.pid + ": team "+ str(n)
         self.team = n
 
     def warn(self):
@@ -278,21 +282,22 @@ def filter_clients(c, status=""):
     return []
 
 if __name__ == "__main__":
-    #import ghoust_debug_clients
-    #debug = ghoust_debug_clients.ghoust_debug(num_clients=30)
+    debug = False
+    if debug:
+        import ghoust_debug_clients
+        debugclients = ghoust_debug_clients.ghoust_debug(num_clients=30)
 
     
     # TODO argparse
     #g = GHOUST(["ghoust_game", "ghoust_game"])
-    g = GHOUST(["ghoust_game"])
+    g = GHOUST(["ghoust_teamgame"])
     #g = GHOUST(["sort_game"])
     
     try:
         g.run()
-    except KeyboardInterrupt:
+    except Exception:
         g.stop()
 
-
-    #print "\n Cleaning up, stopping debug clients"
-    #debug.stop()
+    if debug:
+        debugclients.stop()
 
