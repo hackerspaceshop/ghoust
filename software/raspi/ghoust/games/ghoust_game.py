@@ -56,8 +56,7 @@ class ghoust_game:
 
     def pre_game_timer(self):
         # configure start timer if 2 or more clients joined
-        # TODO debug, > 1 should be
-        if len(filter_clients(self.players, status = "ACTIVE")) > 0 :
+        if len(filter_clients(self.players, status = "ACTIVE")) > 1 :
             self.start_timers(pregame=True)
         else:
             self.stop_timers(pregame=True)

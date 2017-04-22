@@ -30,7 +30,7 @@ class Player:
 
         # vibrate and light softly
 	#self._config("led", preset = 2)
-	self._config("led", val=[1023,1023,0], duration_led=1)
+	self._config("led", val=[1023,1023,0], duration_led=500)
         self._config("motor", preset = 2) 
 	#self._config("buzzer", preset = 2)
 
@@ -41,7 +41,7 @@ class Player:
 	# vibrate hard, light red, set inactive
 	self._config("motor", preset = 1)
 	self._config("led", preset = 1)
-	self._config("led", val=[1023,0,0], duration_led=1)
+	self._config("led", val=[1023,0,0], duration_led=1000)
 	self._config("buzzer", preset = 3)
     
     def timeout(self):
@@ -51,7 +51,7 @@ class Player:
 	# timeout action
 	self._config("motor", preset = 1)
 	self._config("led", preset = 1)
-	self._config("led", val=[1023,1023,0], duration_led=1)
+	self._config("led", val=[1023,1023,0], duration_led=1000)
 	#self._config("buzzer", preset = 1)
 	
     
@@ -61,7 +61,7 @@ class Player:
         # light orange, weirdly vibrate
 	self._config("motor", preset = 1)
 	self._config("led", preset = 1)
-	self._config("led", val=[1023,1023,0], duration_led=1)
+	self._config("led", val=[1023,1023,0], duration_led=1000)
 	#self._config("buzzer", preset = 1)
 	
 
@@ -94,7 +94,7 @@ class Player:
         # vibrate partily, light green
 	self._config("motor",preset=3)
 	self._config("led")
-	self._config("led", val=[0,1023,0], duration_led=5)
+	self._config("led", val=[0,1023,0], duration_led=2000)
 	self._config("buzzer", preset = 1)
     
     def select_game(self, n):
@@ -147,17 +147,9 @@ class Player:
             if parameter == "led":
                 fstring = "RAW:{:04},{:04},{:04}"
 		if duration_led != None:
-		    self.led_timer = Timer(duration_led, self._config, args = ["led"], kwargs={"val":[0,0,0]})
-                    self.led_timer.start()
-		    # TODO previous led value?
-
-            # TODO inversal bug in firmware, temp fix, remove
-            if parameter == "led":	
-                self.client.publish(topic, fstring.format(*[1023-i for i in val]))
-                return 
+                    fstring = "RAW:{:04},{:04},{:04},{:04}"
+                    val.append(duration_led)
             self.client.publish(topic, fstring.format(*val))
-
-            
 
 
 class GHOUST:
