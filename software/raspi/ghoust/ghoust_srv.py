@@ -172,13 +172,25 @@ class GHOUST:
         
         # game modules
         self.games = []
+        self.setgames(game_list)
+    
+    #### game functions ####
+    
+    def setgames(self, game_list):
+        # stop old games
+        if len(self.games) > 0:
+            for g in self.games:
+                g.stop()
+
+        self.games = []
+        # start new games
         for i, g in enumerate(game_list):
             m = importlib.import_module("games."+g)
             C = getattr(m, g)
-            self.games.append(C(i))
+            game = C(i)
+            game.setup()
+            self.games.append(game)
 
-    #### game functions ####
-    
     # buzzer, vibro val: [0-1023, 0-1023], [duration (ms), frequency (hz)]
     # led val: [0-1023, 0-1023, 0-10123], [r, g, b]
     # parameter: ["motor", "buzzer", "led"]
@@ -208,7 +220,8 @@ class GHOUST:
 
     def _on_connect(self, client, userdata, flags, rc):
         print("Connected with result code " + str(rc))
-
+        
+        client.subscribe("GHOUST/server/changegame")
         client.subscribe("GHOUST/clients/+/status")
         client.subscribe("GHOUST/clients/+/events/button")
         client.subscribe("GHOUST/clients/+/events/accelerometer")
@@ -217,10 +230,15 @@ class GHOUST:
     def _on_message(self, client, userdata, msg):
             topic = msg.topic.split("/")
             payload = str(msg.payload)
-            if len(topic) < 4:
+            if len(topic) < 3:
                     print("msg tree too short! debug: " +msg.topic + " " + payload)
                     return
             
+            if topic[1] == "server":
+                if topic[2] == "changegame":
+                    self.setgames(payload.split(","))
+                return
+
             pid = topic[2]
             subtree = topic[3]
             if subtree == "status":
@@ -269,9 +287,6 @@ class GHOUST:
         self.client.connect("localhost", 1883, 60)
         self.client.publish("GHOUST/server/status", "ACTIVE")
         
-        for g in self.games:
-            g.setup()
-        
         self.client.loop_forever()
 
 #############################
@@ -289,13 +304,11 @@ if __name__ == "__main__":
 
     
     # TODO argparse
-    #g = GHOUST(["ghoust_game", "ghoust_game"])
     g = GHOUST(["ghoust_teamgame"])
-    #g = GHOUST(["sort_game"])
     
     try:
         g.run()
-    except Exception:
+    except KeyboardInterrupt:
         g.stop()
 
     if debug:
