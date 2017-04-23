@@ -179,6 +179,5 @@ class ghoust_teamgame:
         self.pre_game()
     
     def stop(self):
-        print "stoptest"
         self.stop_timers(True, True, True)
     

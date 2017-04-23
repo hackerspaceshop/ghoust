@@ -2,9 +2,10 @@
 import time
 
 import paho.mqtt.client as mqtt
-import importlib
-from threading import Timer
+import importlib, time, argparse
+from socket import error as socket_error
 
+from threading import Timer
 
 class Player:
     def __init__(self, pid, mqtt_client, name="", game=None):
@@ -158,10 +159,12 @@ class Player:
 
 class GHOUST:
 
-    def __init__(self, game_list):
+    def __init__(self, game_list, host, port):
         
         self.clients = dict()
-        
+        self.host = host
+        self.port = port
+
         self.client = mqtt.Client("GHOUST_SRV", clean_session=False)
         self.client.will_set("GHOUST/server/status", "EXIT")
         self.client._on_connect = self._on_connect
@@ -284,9 +287,18 @@ class GHOUST:
         self.client.loop_stop()
 
     def run(self):
-        self.client.connect("localhost", 1883, 60)
+        for i in xrange(3):
+            try:
+                self.client.connect(self.host, self.port, 10)
+                break
+            except socket_error as e:
+                print("socket.error: [{}] {}".format(e.errno,e.strerror))
+                if i == 2:
+                    raise e
+                print("retrying after 10s")
+                time.sleep(10)
+
         self.client.publish("GHOUST/server/status", "ACTIVE")
-        
         self.client.loop_forever()
 
 #############################
@@ -303,8 +315,13 @@ if __name__ == "__main__":
         debugclients = ghoust_debug_clients.ghoust_debug(num_clients=30)
 
     
-    # TODO argparse
-    g = GHOUST(["ghoust_teamgame"])
+    parser = argparse.ArgumentParser(description="GHOUST. it is a game. it is very good")
+    parser.add_argument('games', metavar='game', type=str, nargs='+', help="the games to be run")
+    parser.add_argument('-H', '--host', nargs='?', type=str, default='localhost', help="Host where MQTT server is running")
+    parser.add_argument('-p', '--port', nargs='?', type=int, default=1883, help="Port where MQTT server is running")
+    args = parser.parse_args()
+    
+    g = GHOUST(args.games, args.host, args.port)
     
     try:
         g.run()
